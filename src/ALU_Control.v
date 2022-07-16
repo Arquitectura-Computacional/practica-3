@@ -23,7 +23,6 @@ module ALU_Control
 
 );
 
-
 localparam R_Type_ADD         = 7'b0_000_000;
 localparam R_Type_SUB         = 7'b1_000_000;
 localparam R_Type_AND			= 7'b0_000_111;
@@ -38,8 +37,6 @@ localparam I_Type_ORI         = 7'bx_001_110;
 localparam I_Type_XORI			= 7'bx_001_100;
 localparam I_Type_SRLI        = 7'b0_001_101;
 localparam I_Type_SLLI        = 7'b0_001_001;
-
-
 
 localparam U_Type_LUI         = 7'bx_010_xxx;
 

@@ -27,7 +27,7 @@ module Register
 always@(negedge reset or posedge clk) begin
 	if(reset==0)
         if(sp == 1)
-            DataOutput<= 32'h10_01_04_00;
+            DataOutput<= 32'h10_01_03_FC;
         else
             DataOutput <= 0;
     else

@@ -14,15 +14,15 @@
 module Immediate_Unit
 (   
 	input [6:0] op_i,
-	input [31:0]  Instruction_bus_i,
+	input [31:0] Instruction_bus_i,
 	
    output reg [31:0] Immediate_o
 );
 
-localparam R_Type				= 7'h33;
+localparam R_Type			= 7'h33;
 
 localparam I_Type_Logic 	= 7'h13;
-localparam I_Type_LW			= 7'h03;
+localparam I_Type_LW		= 7'h03;
 localparam I_Type_JALR		= 7'h67;
 
 localparam U_Type 			= 7'h37;

@@ -28,10 +28,10 @@ module Multiplexer_4_to_1
 	always@(Selector_i ,Mux_Data_3_i, Mux_Data_2_i, Mux_Data_1_i, Mux_Data_0_i)
     begin
         case (Selector_i)
-            0: Mux_Output_o <= Mux_Data_0_i;
-            1: Mux_Output_o <= Mux_Data_1_i;
-            2: Mux_Output_o <= Mux_Data_2_i;
-            3: Mux_Output_o <= Mux_Data_3_i;
+            0: Mux_Output_o = Mux_Data_0_i;
+            1: Mux_Output_o = Mux_Data_1_i;
+            2: Mux_Output_o = Mux_Data_2_i;
+            3: Mux_Output_o = Mux_Data_3_i;
             default: Mux_Output_o <= 0;
         endcase
 	end

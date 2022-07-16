@@ -26,10 +26,10 @@ module Control
 	output [2:0]ALU_Op_o
 );
 
-localparam R_Type				= 7'h33;
+localparam R_Type			= 7'h33;
 
 localparam I_Type_Logic 	= 7'h13;
-localparam I_Type_LW			= 7'h03;
+localparam I_Type_LW		= 7'h03;
 localparam I_Type_JALR		= 7'h67;
 
 localparam U_Type 			= 7'h37;
@@ -50,9 +50,9 @@ always@(OP_i) begin
 		
 		I_Type_Logic: 		control_values = 12'b000_00_1_00_1_001;
 		I_Type_LW:			control_values = 12'b000_01_1_10_1_110;
-		I_Type_JALR:		control_values = 12'b100_00_1_00_1_101;
+		I_Type_JALR:		control_values = 12'b100_10_1_00_1_101;
 		
-		U_Type: 				control_values = 12'b000_00_1_00_1_010;
+		U_Type: 			control_values = 12'b000_00_1_00_1_010;
 		
 		B_Type:				control_values = 12'b001_00_0_00_0_100;
 		
@@ -60,7 +60,7 @@ always@(OP_i) begin
 		
 		J_Type:				control_values = 12'b010_10_1_00_1_111;
 		
-		default:				control_values = 12'b000_00_0_000;
+		default:			control_values = 12'b000_00_0_000;
 			
 	endcase
 		

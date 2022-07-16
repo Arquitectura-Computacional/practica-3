@@ -39,14 +39,9 @@ module RISC_V_Single_Cycle
 /* Signals to connect modules*/
 
 /**Control**/
-
 wire jal_o_w;
 wire jalr_o_w;
-
 wire branch_o_w;
-
-wire OR_Module;
-
 wire alu_src_w;
 wire reg_write_w;
 wire [1:0] mem_to_reg_w;
@@ -102,25 +97,26 @@ wire [31:0] instruction_bus_w;
 
 /**And Module**/
 wire pc_src_w;
+wire OR_Module;
 
 /** Pipeline IF -> ID **/
 wire [31:0] pipe_if_id_instruction_w;
-wire [31:0] pipe_if_id_pc_plus_4_w;
 wire [31:0] pipe_if_id_pc_w;
 wire [31:0] pipe_if_id_pc_plus_immediate_w;
-
-
-/** Pipeline MEM -> WB **/
-wire [31:0] pipe_mem_mux_Data_w;
-
-
 
 /** Pipeline ID -> EX **/
 wire [31:0] pipe_id_ex_immediate_data_w_o;
 wire [31:0] pipe_id_ex_read_data_1_w_o;
 wire [31:0] pipe_id_ex_read_data_2_w_o;
 wire [31:0] pipe_id_ex_alu_operation_w_o;
-
+wire [31:0] pipe_id_ex_pc_plus_4_w;
+wire pipe_id_ex_jalr_ex_w_o;
+wire pipe_id_ex_jal_ex_w_o;
+wire pipe_id_ex_branch_ex_w_o;
+wire pipe_id_ex_mem_read_ex_w_o;
+wire pipe_id_ex_mem_write_ex_w_o;
+wire pipe_id_ex_alu_src_ex_w_o;
+wire [1:0] pipe_id_ex_mem_to_reg_ex_w_o;
 
 /** Pipeline EX -> MEM **/
 wire [31:0] pipe_ex_mem_alu_result_w_o;
@@ -130,6 +126,20 @@ wire [31:0] pipe_ex_mem_mux_output_data_or_imm_o;
 wire [31:0] pipe_ex_mem_mux_output_pc_branch_o;
 wire [31:0] pipe_ex_mem_mux_output_pc_jal_o;
 wire [31:0] pipe_ex_mem_mux_output_pc_jalr_o;
+
+wire [31:0] pipe_ex_mem_pc_plus_4_w;
+wire [31:0] pc_plus_4_or_pc_jalr_ex_w_o;
+wire pipe_ex_mem_mem_read_mem_w_o;
+wire [1:0] pipe_ex_mem_mem_to_reg_mem_w_o;
+wire pipe_ex_mem_mem_write_mem_w_o;
+wire pipe_ex_mem_read_data_2_w_o;
+
+/** Pipeline MEM -> WB **/
+wire [31:0] pipe_mem_mux_Data_w;
+wire [31:0] pipe_mem_wb_alu_result_w_o;
+wire [31:0] pipe_mem_wb_pc_plus_4_w_o;
+wire [31:0] pc_plus_4_or_pc_jalr_wb_w_o;
+wire [1:0] pipe_mem_wb_mem_to_reg_wb_w_o;
 
 //******************************************************************/
 //******************************************************************/
@@ -144,7 +154,6 @@ CONTROL_UNIT
 	/** outputus**/
 	.Jalr_o(jalr_o_w),
 	.Jal_o(jal_o_w),
-	
 	.Branch_o(branch_o_w),
 	.ALU_Op_o(alu_op_w),
 	.ALU_Src_o(alu_src_w),
@@ -159,7 +168,7 @@ PROGRAM_COUNTER
 (
 	.clk(clk),
 	.reset(reset),
-	.Next_PC(pipe_ex_mem_mux_output_pc_jalr_o),
+	.Next_PC(pc_plus_4_or_pc_jalr_wb_w_o),
 	.PC_Value(pc_w)
 );
 
@@ -181,10 +190,10 @@ Data_Memory
 DATA_MEMORY
 (	
 	.clk(clk),
-	.Mem_Write_i(mem_write_w),
-	.Mem_Read_i(mem_read_w),
+	.Mem_Write_i(pipe_ex_mem_mem_write_mem_w_o),
+	.Mem_Read_i(pipe_ex_mem_mem_read_mem_w_o),
 	.Write_Data_i(pipe_id_ex_read_data_2_w_o),
-	.Address_i(pipe_ex_mem_alu_result_w_o),
+	.Address_i(pipe_ex_mem_read_data_2_w_o),
 	
 	.Read_Data_o(read_data_w)
 );
@@ -192,18 +201,16 @@ DATA_MEMORY
 Adder_32_Bits
 PC_PLUS_4
 (
-	.Data0(pipe_if_id_pc_w),
+	.Data0(pc_w),
 	.Data1(4),
-	
 	.Result(pc_plus_4_w)
 );
 
 Adder_32_Bits
 PC_PLUS_IMMEDIATE
 (
-	.Data0(pipe_if_id_pc_w),
+	.Data0(pipe_id_ex_pc_plus_4_w),
 	.Data1(pipe_id_ex_immediate_data_w_o),
-	
 	.Result(pc_plus_immediate_w)
 );
 
@@ -213,7 +220,6 @@ PC_PLUS_IMMEDIATE
 //******************************************************************/
 //******************************************************************/
 //******************************************************************/
-
 
 
 Register_File
@@ -226,9 +232,9 @@ REGISTER_FILE_UNIT
 	.Read_Register_1_i(pipe_if_id_instruction_w[19:15]),
 	.Read_Register_2_i(pipe_if_id_instruction_w[24:20]),
 	.Write_Data_i(write_data_w),
+
 	.Read_Data_1_o(read_data_1_w),
 	.Read_Data_2_o(read_data_2_w)
-
 );
 
 Immediate_Unit
@@ -244,7 +250,7 @@ Multiplexer_2_to_1
 )
 MUX_DATA_OR_IMM_FOR_ALU
 (
-	.Selector_i(alu_src_w),
+	.Selector_i(pipe_id_ex_alu_src_ex_w_o),
 	.Mux_Data_0_i(pipe_id_ex_read_data_2_w_o),
 	.Mux_Data_1_i(pipe_id_ex_immediate_data_w_o),
 	
@@ -258,9 +264,9 @@ Multiplexer_2_to_1
 )
 MUX_PC_BRANCH
 (
-	.Selector_i(pipe_ex_mem_result_and_branch_alu_o),    //pc_src_w del and
-	.Mux_Data_0_i(pipe_if_id_pc_plus_4_w),
-	.Mux_Data_1_i(pipe_if_id_pc_plus_immediate_w),
+	.Selector_i(pc_src_w),    //pc_src_w del and
+	.Mux_Data_0_i(pipe_id_ex_pc_plus_4_w),
+	.Mux_Data_1_i(pc_plus_immediate_w),
 	
 	.Mux_Output_o(pc_plus_4_or_pc_plus_imm_w)
 
@@ -272,9 +278,9 @@ Multiplexer_2_to_1
 )
 MUX_PC_JAL
 (
-	.Selector_i(jal_o_w),
-	.Mux_Data_0_i(pipe_ex_mem_mux_output_pc_branch_o),
-	.Mux_Data_1_i(pipe_if_id_pc_plus_immediate_w),
+	.Selector_i(pipe_id_ex_jal_ex_w_o),
+	.Mux_Data_0_i(pc_plus_4_or_pc_plus_imm_w),
+	.Mux_Data_1_i(pc_plus_immediate_w),
 	
 	.Mux_Output_o(pc_plus_4_or_pc_jal)
 
@@ -287,8 +293,8 @@ Multiplexer_2_to_1
 MUX_PC_JALR
 (
 	.Selector_i(jalr_o_w),
-	.Mux_Data_0_i(pipe_ex_mem_mux_output_pc_jal_o),
-	.Mux_Data_1_i(pipe_ex_mem_alu_result_w_o),
+	.Mux_Data_0_i(pc_plus_4_or_pc_jal),
+	.Mux_Data_1_i(alu_result_w),
 	
 	.Mux_Output_o(pc_plus_4_or_pc_jalr)
 
@@ -297,21 +303,10 @@ MUX_PC_JALR
 And_Module
 AND_BRANCH_ALU
 (
-    .A_i(branch_o_w),
-    .B_i(pipe_ex_mem_result_or_branch_alu_o),
+    .A_i(pipe_id_ex_branch_ex_w_o),
+    .B_i(alu_result_w),
     .result(pc_src_w)
 );
-
-
-OR_Module
-OR_BRANCH_ALU
-(
-	.A_i(pipe_id_ex_alu_operation_w_o),
-    .B_i(pipe_ex_mem_alu_result_w_o),
-
-    .result(OR_Module)
-);
-
 
 ALU_Control
 ALU_CONTROL_UNIT
@@ -324,14 +319,13 @@ ALU_CONTROL_UNIT
 
 );
 
-
 ALU
 ALU_UNIT
 (
 	.ALU_Operation_i(pipe_id_ex_alu_operation_w_o),
-	.A_i(pipe_id_ex_immediate_data_w_o),
-	.B_i(pipe_ex_mem_mux_output_data_or_imm_o),
-	.pc_plus_4(pipe_if_id_pc_plus_4_w),
+	.A_i(pipe_id_ex_read_data_1_w_o),
+	.B_i(read_data_2_or_imm_w),
+	.pc_plus_4(pipe_id_ex_pc_plus_4_w),
 
 	.ALU_Result_o(alu_result_w)
 );
@@ -343,9 +337,9 @@ Multiplexer_4_to_1
 MUX_MEM_TO_REG
 (
 	.Selector_i(mem_to_reg_w),
-	.Mux_Data_0_i(pipe_ex_mem_alu_result_w_o),
+	.Mux_Data_0_i(pipe_mem_wb_alu_result_w_o),
 	.Mux_Data_1_i(pipe_mem_mux_Data_w),
-	.Mux_Data_2_i(pipe_if_id_pc_plus_4_w),
+	.Mux_Data_2_i(pipe_mem_wb_pc_plus_4_w_o),
 
 
 	.Mux_Output_o(write_data_w)
@@ -367,14 +361,12 @@ IF_ID
 	.clk(clk),
 	.reset(reset),
 	.instruction_w(instruction_bus_w),
-	.result_pc_plus_4(pc_plus_4_w),
-	.result_pc_plus_immediate(pc_plus_immediate_w),
+	.result_pc_plus_4_id(pc_plus_4_w),
 	.pc_values(pc_w),
 
 	.instruction_w_o(pipe_if_id_instruction_w),
-	.result_pc_plus_immediate_o(pipe_if_id_pc_plus_immediate_w),
 	.pc_values_o(pipe_if_id_pc_w),
-	.result_pc_plus_4_o(pipe_if_id_pc_plus_4_w)
+	.result_pc_plus_4_id_o(pipe_if_id_pc_plus_4_w)
 );
 
 //rojo
@@ -387,11 +379,27 @@ ID_EX
 	.read_data_1_w(read_data_1_w),
 	.read_data_2_w(read_data_2_w),
 	.alu_operation_w(alu_operation_w),
+	.result_pc_plus_4_ex(pipe_if_id_pc_plus_4_w),
+	.jalr_ex_w(jalr_o_w),
+	.jal_ex_w(jal_o_w),
+	.branch_ex_w(branch_o_w),
+	.mem_read_ex_w(mem_read_w),
+	.mem_to_reg_ex_w(mem_to_reg_w),
+	.mem_write_ex_w(mem_write_w),
+	.alu_src_ex_w(alu_src_w),
 
 	.immediate_data_w_o(pipe_id_ex_immediate_data_w_o),
 	.read_data_1_w_o(pipe_id_ex_read_data_1_w_o),
 	.read_data_2_w_o(pipe_id_ex_read_data_2_w_o),
-	.alu_operation_w_o(pipe_id_ex_alu_operation_w_o)
+	.alu_operation_w_o(pipe_id_ex_alu_operation_w_o),
+	.result_pc_plus_4_ex_o(pipe_id_ex_pc_plus_4_w),
+	.jalr_ex_w_o(pipe_id_ex_jalr_ex_w_o),
+	.jal_ex_w_o(pipe_id_ex_jal_ex_w_o),
+	.branch_ex_w_o(pipe_id_ex_branch_ex_w_o),
+	.mem_read_ex_w_o(pipe_id_ex_mem_read_ex_w_o),
+	.mem_to_reg_ex_w_o(pipe_id_ex_mem_to_reg_ex_w_o),
+	.mem_write_ex_w_o(pipe_id_ex_mem_write_ex_w_o),
+	.alu_src_ex_w_o(pipe_id_ex_alu_src_ex_w_o)
 
 );
 
@@ -402,22 +410,23 @@ EX_MEM
 	.clk(clk),
 	.reset(reset),
 	.alu_result_w(alu_result_w),
-	.result_or_branch_alu(OR_Module), //no estoy seguro de este 
-   .result_and_branch_alu(pc_src_w), //ni este 
-   .mux_output_pc_branch(pc_plus_4_or_pc_plus_imm_w),//no estoy seguro
-   .mux_output_pc_jal(pc_plus_4_or_pc_jal),
+	.mux_output_data_or_imm(read_data_2_or_imm_w),
+   .result_pc_plus_4_mem(pipe_id_ex_pc_plus_4_w),
+   .pc_plus_4_or_pc_jalr_ex(pc_plus_4_or_pc_jalr_ex_w),
+   	.mem_read_mem_w(pipe_id_ex_mem_read_ex_w_o),
+	.mem_to_reg_mem_w(pipe_id_ex_mem_to_reg_ex_w_o),
+	.mem_write_mem_w(pipe_id_ex_mem_write_ex_w_o),
+	.read_data_2_mem_w(pipe_id_ex_read_data_2_w_o),
 
    .alu_result_w_o(pipe_ex_mem_alu_result_w_o),
-   .result_or_branch_alu_o(pipe_ex_mem_result_or_branch_alu_o),
-   .result_and_branch_alu_o(pipe_ex_mem_result_and_branch_alu_o),
-   .mux_output_pc_branch_o(pipe_ex_mem_mux_output_pc_branch_o),
-   .mux_output_pc_jal_o(pipe_ex_mem_mux_output_pc_jal_o),
-   .mux_output_pc_jalr_o(pipe_ex_mem_mux_output_pc_jalr_o)
+   .mux_output_data_or_imm_o(pipe_ex_mem_mux_output_data_or_imm_o),
+   .result_pc_plus_4_mem_o(pipe_ex_mem_pc_plus_4_w),
+   .pc_plus_4_or_pc_jalr_ex_o(pc_plus_4_or_pc_jalr_ex_w_o),
+   	.mem_read_mem_w_o(pipe_ex_mem_mem_read_mem_w_o),
+	.mem_to_reg_mem_w_o(pipe_ex_mem_mem_to_reg_mem_w_o),
+	.mem_write_mem_w_o(pipe_ex_mem_mem_write_mem_w_o),
+	.read_data_2_mem_w_o(pipe_ex_mem_read_data_2_w_o),
 );
-
-
-
-
 
 //negro
 PIPE_MEM_WB
@@ -426,12 +435,20 @@ MEM_WB
 	.clk(clk),
 	.reset(reset),
 	.read_data_w(read_data_w),
+	.result_alu_w(pipe_ex_mem_alu_result_w_o),
+	.result_pc_plus_4_wb(pipe_ex_mem_pc_plus_4_w),
     //.mux_output_mem_to_reg_w(write_data_w),
+	.pc_plus_4_or_pc_jalr_wb(pc_plus_4_or_pc_jalr_wb_w),
+	.mem_to_reg_wb_w(pipe_ex_mem_mem_to_reg_mem_w_o),
 
-    .read_data_w_o(pipe_mem_mux_Data_w) // mux_data_1 MUX_MEM_TO_REG
-	
-	
-    //.mux_output_mem_to_reg_w_o()
+    .read_data_w_o(pipe_mem_mux_Data_w), // mux_data_1 MUX_MEM_TO_REG
+
+  .result_alu_w_o(pipe_mem_wb_alu_result_w_o),
+	.result_pc_plus_4_wb_o(pipe_mem_wb_pc_plus_4_w_),,
+	  //.mux_output_mem_to_reg_w_o
+	.pc_plus_4_or_pc_jalr_wb_o(pc_plus_4_or_pc_jalr_wb_w_o),
+	.mem_to_reg_wb_w_o(pipe_mem_wb_mem_to_reg_wb_w_o)
+
 
 
 );
